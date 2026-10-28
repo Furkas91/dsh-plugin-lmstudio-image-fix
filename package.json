@@ -1,7 +1,7 @@
 {
   "name": "dsh-lmstudio-vision-fix",
-  "version": "0.1.0",
-  "description": "Convert non-JPEG images to JPEG before LM Studio vision requests in DSH",
+  "version": "0.1.1",
+  "description": "Convert non-JPEG images to JPEG before LM Studio vision (macOS sips; DSH 0.2)",
   "type": "module",
   "main": "./lib/index.js",
   "exports": {
@@ -20,17 +20,16 @@
     }
   },
   "dependencies": {
-    "@deepseek-ai/schemastery": "3.18.2",
-    "sharp": "^0.35.3"
+    "@deepseek-ai/schemastery": "3.18.2"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "4.0.2",
-    "@deepseek-ai/dsh-tools": "^0.1.2-rc.1"
+    "@deepseek-ai/dsh-tools": ">=0.1.2-rc.1 || >=0.2.0-0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "typescript": "^5.6.0",
-    "tsdown": "^0.22.9"
+    "tsdown": "^0.22.9",
+    "typescript": "^5.6.0"
   },
   "scripts": {
     "build": "tsdown src/index.ts --format esm --out-dir lib --no-fixed-extension",

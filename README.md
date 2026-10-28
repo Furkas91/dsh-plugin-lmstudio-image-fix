@@ -1,39 +1,62 @@
 # dsh-lmstudio-vision-fix
 
-Thin DeepSeek Harness plugin that fixes:
+Плагин для **DeepSeek Harness (DSH)**, который убирает ошибку LM Studio:
 
-`400: 'url' field must be a base64 encoded image`
+```text
+400: 'url' field must be a base64 encoded image
+```
 
-when sending images to **LM Studio** vision models. DSH often attaches WebP/PNG;
-local LM Studio models typically expect JPEG. This plugin converts image
-attachments to JPEG on the `llm/stream` hook **only for configured providers**
-(default: `lmstudio`). No settings UI.
+DSH часто сохраняет скриншоты и вложения как **WebP/PNG** (в том числе из‑за альфа-канала). Локальные vision-модели в LM Studio обычно принимают только **JPEG**. Плагин на хуке `llm/stream` конвертирует вложения в JPEG **только для указанных провайдеров** (по умолчанию `lmstudio`). UI настроек нет.
 
-## Install
+## Как это работает
 
-Clone this private repo, then:
+- Слушает `llm/stream` с `{ global: true }` (иначе хук не видит вызовы LLM из изолированного fiber плагина).
+- Для сообщений с `type: image` читает вложение, конвертирует в JPEG и подменяет attachment перед отправкой в адаптер.
+- Конвертация через системный **`/usr/bin/sips`** (macOS). Нативный `sharp` из npm в Electron DSH не грузится из‑за hardened runtime / code signing.
+
+## Требования
+
+| Компонент | Версия |
+|---|---|
+| DeepSeek Harness | `0.2.x` (проверено на `0.2.1-rc.3`) |
+| Node.js (для сборки) | ≥ 20 |
+| ОС | **macOS** (нужен `sips`) |
+
+## Установка
 
 ```bash
+git clone https://github.com/Furkas91/dsh-plugin-lmstudio-image-fix.git
+cd dsh-plugin-lmstudio-image-fix
 pnpm install
 pnpm build
-dsh plugin --profile web add .
 ```
 
-For a local checkout already built:
+Добавить в профиль desktop (приложение DeepSeek Harness):
 
 ```bash
-dsh plugin --profile web add /path/to/dsh-lmstudio-vision-fix
+dsh plugin --profile desktop add /path/to/dsh-lmstudio-vision-fix
 ```
 
+Если DSH ругается на несовместимость peer-зависимостей:
 
-## Config
+```bash
+dsh plugin --profile desktop allow-version dsh-lmstudio-vision-fix@0.1.0 \
+  --dsh-version 0.2.1-rc.3 --accept-risk
+dsh plugin --profile desktop add /path/to/dsh-lmstudio-vision-fix
+```
 
-Edit `cordis.patch.yml`, then restart DSH:
+После установки **перезапустите** DeepSeek Harness.
+
+Плагин должен появиться в `~/.dsh/profiles/desktop/package.json` в `dependencies` и в `dsh.profile.bundles`.
+
+## Конфиг
+
+Патч бандла (`cordis.patch.yml` плагина) вставляет запись автоматически. При необходимости можно явно добавить в `~/.dsh/profiles/desktop/cordis.patch.yml`:
 
 ```yaml
 - insert:
     - id: lmstudio-vision-fix
-      name: 'dsh-lmstudio-vision-fix'
+      name: dsh-lmstudio-vision-fix
       config:
         providers:
           - lmstudio
@@ -42,32 +65,44 @@ Edit `cordis.patch.yml`, then restart DSH:
         maxDimension: 2048
 ```
 
-- `providers` — case-insensitive exact match on `options.provider`
-- Other providers are left untouched (OpenAI / Anthropic / etc.)
-
-## Verify
-
-In DSH host logs after sending an image to an LM Studio vision model:
-
-```
-[lmstudio-vision-fix] active; providers=lmstudio
-[lmstudio-vision-fix] image/webp → image/jpeg (... → ... bytes)
-```
-
-## Requirements
-
-| Component | Version |
+| Поле | Смысл |
 |---|---|
-| DeepSeek Harness | `0.1.2-rc.1`+ |
-| Node.js | ≥ 20 |
+| `providers` | Точное совпадение с `options.provider` (без учёта регистра) |
+| `jpegQuality` | Качество JPEG, 1–100 |
+| `convertOversized` | Уменьшать длинную сторону, если больше `maxDimension` |
+| `maxDimension` | Макс. сторона в пикселях (0 = без ресайза) |
 
-## Develop
+Остальные провайдеры (OpenAI, Anthropic и т.д.) не трогаются.
+
+## Проверка
+
+1. В DSH отправьте PNG/WebP-картинку модели LM Studio с vision (например `qwen3.8-27b-uncensored-mlx`).
+2. Ошибка `400: 'url' field must be a base64 encoded image` больше не должна появляться.
+3. В логе плагина:
+
+```bash
+cat ~/.dsh/lmstudio-vision-fix.log
+```
+
+Ожидаемые строки:
+
+```text
+apply() active
+llm/stream hit provider=lmstudio ...
+[lmstudio-vision-fix] image/webp → image/jpeg (... → ... bytes)
+done changed=1
+```
+
+## Разработка
 
 ```bash
 pnpm install
 pnpm build
+pnpm typecheck
 ```
 
-## License
+После правок исходников пересоберите (`pnpm build`) и перезапустите DSH — профиль подключает плагин через `link:`, поэтому подхватывается свежий `lib/`.
+
+## Лицензия
 
 MIT

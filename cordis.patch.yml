@@ -1,0 +1,10 @@
+- insert:
+    - id: lmstudio-vision-fix
+      name: 'dsh-lmstudio-vision-fix'
+      config:
+        # Only these provider ids get conversion (case-insensitive exact match).
+        providers:
+          - lmstudio
+        jpegQuality: 90
+        convertOversized: true
+        maxDimension: 2048

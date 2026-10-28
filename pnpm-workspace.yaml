@@ -1,0 +1,11 @@
+packages:
+  - .
+
+nodeLinker: hoisted
+autoInstallPeers: false
+
+allowBuilds:
+  sharp: true
+
+overrides:
+  rolldown: 1.2.8
